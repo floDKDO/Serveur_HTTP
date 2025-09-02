@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 
 
 #define CHK(op) do { if ((op) == -1) {perror(""); exit(EXIT_FAILURE);} } while (0)
@@ -40,8 +41,6 @@ int main(void)
  	
  	int s;
  	CHK(s = accept(s_listen, (struct sockaddr*)&client, &len_client));
- 	
- 	printf("%s\n", inet_ntoa(client.sin_addr));
  	
  	char buffer[MAX_LENGTH_BUFFER];
  	CHK(recv(s, buffer, MAX_LENGTH_BUFFER, 0));
@@ -119,7 +118,27 @@ int main(void)
 	}
 	else if(strcmp(method, "HEAD") == 0)
 	{
+		time_t t;
+		if((t = time(NULL)) == (time_t) -1)
+		{
+			perror("time");
+			exit(EXIT_FAILURE);
+		}
+		
+		struct tm* tm; 
+		NCHK(tm = gmtime(&t)); //GMT
+		
+		char date[100];
+		strftime(date, sizeof(date), "%a, %d %b %Y %T %Z", tm);
 	
+		char response[MAX_LENGTH_BUFFER] = {0};
+		snprintf(response + strlen(response), MAX_LENGTH_BUFFER - strlen(response), "%s", "HTTP/1.1 200 OK \r\n");
+		snprintf(response + strlen(response), MAX_LENGTH_BUFFER - strlen(response), "%s", "Server: mon_serveur\r\n");
+		snprintf(response + strlen(response), MAX_LENGTH_BUFFER - strlen(response), "%s%s%s", "Date: ", date, "\r\n");
+		snprintf(response + strlen(response), MAX_LENGTH_BUFFER - strlen(response), "%s", "Content-Type: text/html\r\n");
+		snprintf(response + strlen(response), MAX_LENGTH_BUFFER - strlen(response), "%s", "\r\n\r\n");
+		
+		CHK(send(s, response, strlen(response), 0));
 	}
 	else if(strcmp(method, "POST") == 0)
 	{
